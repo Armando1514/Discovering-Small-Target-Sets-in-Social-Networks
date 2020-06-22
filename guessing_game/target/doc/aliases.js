@@ -1,9 +1,0 @@
-var ALIASES = {};
-ALIASES["c2_chacha"] = {};
-ALIASES["cfg_if"] = {};
-ALIASES["getrandom"] = {};
-ALIASES["guessing_game"] = {};
-ALIASES["ppv_lite86"] = {};
-ALIASES["rand"] = {};
-ALIASES["rand_chacha"] = {};
-ALIASES["rand_core"] = {};
