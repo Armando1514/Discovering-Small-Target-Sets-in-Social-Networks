@@ -2,7 +2,7 @@ import operator
 
 import GraphTools
 
-g = GraphTools.load_graph_from_txt("p2p-Gnutella31.txt")
+g = GraphTools.load_graph_from_txt("facebook_combined.txt")
 print('Graph Nodes: %d, Edges: %d' % (g.GetNodes(), g.GetEdges()))
 
 g = GraphTools.deferred_decisions_with_uniform_probability(g)
@@ -14,6 +14,10 @@ print('After Deferred decision Nodes: %d, Edges: %d' % (g.GetNodes(), g.GetEdges
 seed_set = []
 
 formula_table = {}
+explored_nodes = []
+
+node_with_threshold_zero = []
+node_with_degree_below_threshold = []
 
 
 def calculate_formula():
@@ -26,6 +30,10 @@ def calculate_formula():
             formula_table[n_id] = node_formula
         else:
             formula_table[n_id] = 0
+        if g.GetIntAttrDatN(n_id, "threshold") < 0:
+            node_with_threshold_zero.append(n_id)
+        elif g.GetIntAttrDatN(n_id, "threshold") > node.GetInDeg():
+            node_with_degree_below_threshold.append(n_id)
 
 
 def update_formula(nodes):
@@ -39,97 +47,79 @@ def update_formula(nodes):
                 formula_table[node_id] = node_formula
 
 
-def threshold_reached(node_id):
+def threshold_reached(n_id):
+    node_references = g.GetNI(n_id)
     id_node_where_update_formula = []
-    node_with_threshold_to_zero = [node_id]
-    node_with_degree_below_threshold = []
 
-    while len(node_with_threshold_to_zero) > 0:
-        node_to_analyse = node_with_threshold_to_zero.pop()
-        n = g.GetNI(node_to_analyse)
+    for node_out in node_references.GetOutEdges():
+        id_node_where_update_formula.append(node_out)
 
-        for node_out_id in n.GetOutEdges():
-            id_node_where_update_formula.append(node_out_id)
-            node_out_threshold = g.GetIntAttrDatN(node_out_id, "threshold")
-
-            if node_out_threshold > 0:
-                node_out_threshold = node_out_threshold - 1
-                g.AddIntAttrDatN(node_out_id, node_out_threshold, "threshold")
-                if g.GetNI(node_out_id).GetInDeg() - 1 < node_out_threshold:
-                    node_with_degree_below_threshold.append(node_out_id)
-            else:
-                node_with_threshold_to_zero.append(node_out_id)
-
-    while len(node_with_degree_below_threshold) > 0:
-        node_pop = node_with_degree_below_threshold.pop()
-        if g.IsNode(node_pop):
-            degree_below_threshold(node_pop)
-
-    g.DelNode(node_id)
-    del formula_table[node_id]
+        if g.GetIntAttrDatN(node_out, "threshold") < 0:
+            node_with_threshold_zero.append(node_out)
+        elif (g.GetNI(node_out).GetInDeg() - 1) < g.GetIntAttrDatN(node_out, "threshold"):
+            node_with_degree_below_threshold.append(node_out)
+    g.DelNode(n_id)
     update_formula(id_node_where_update_formula)
+    del formula_table[n_id]
 
 
-def degree_below_threshold(node_id):
-
-    seed_set.append(node_id)
+def degree_below_threshold(n_id):
+    seed_set.append(n_id)
+    node_references = g.GetNI(n_id)
     id_node_where_update_formula = []
-    node_with_degree_below_to_zero = [node_id]
+    for node_out in node_references.GetOutEdges():
 
-    while len(node_with_degree_below_to_zero) > 0:
-        node_to_analyse = node_with_degree_below_to_zero.pop()
-        if g.IsNode(node_to_analyse):
-            n = g.GetNI(node_to_analyse)
-            for node_out_id in n.GetOutEdges():
-
-                id_node_where_update_formula.append(node_out_id)
-                node_out_threshold = g.GetIntAttrDatN(node_out_id, "threshold")
-                node_out_threshold = node_out_threshold - 1
-                g.AddIntAttrDatN(node_out_id, node_out_threshold, "threshold")
-                if node_out_threshold == 0:
-                    threshold_reached(node_out_id)
-                elif g.GetNI(node_out_id).GetInDeg() - 1 < node_out_threshold:
-                    node_with_degree_below_to_zero.append(node_out_id)
-        if g.IsNode(node_id):
-            g.DelNode(node_id)
-            del formula_table[node_id]
-            update_formula(id_node_where_update_formula)
+        id_node_where_update_formula.append(node_out)
+        node_out_threshold = g.GetIntAttrDatN(node_out, "threshold")
+        node_out_threshold = node_out_threshold - 1
+        node_out_threshold = g.AddIntAttrDatN(node_out, node_out_threshold, "threshold")
+        if node_out_threshold < 0:
+            node_with_threshold_zero.append(node_out)
+        elif (g.GetNI(node_out).GetInDeg() - 1) < node_out_threshold:
+            node_with_degree_below_threshold.append(node_out)
+    g.DelNode(n_id)
+    update_formula(id_node_where_update_formula)
+    del formula_table[n_id]
 
 
 def get_maximum_node_id():
     return max(formula_table.items(), key=operator.itemgetter(1))[0]
 
 
-def choose_the_maximum_ratio():
-    node_id = get_maximum_node_id()
-    if g.IsNode(node_id):
-        max_node = g.GetNI(node_id)
-        id_node_where_update_formula = []
-        for node_max_out_id in max_node.GetOutEdges():
-            id_node_where_update_formula.append(node_max_out_id)
-            update_formula(id_node_where_update_formula)
+def choose_the_maximum_ratio(n_id):
+    node_references = g.GetNI(n_id)
+    id_node_where_update_formula = []
 
+    for node_out in node_references.GetOutEdges():
+        id_node_where_update_formula.append(node_out)
+        if g.GetIntAttrDatN(node_out, "threshold") == 0:
+            node_with_threshold_zero.append(node_out)
+        elif (g.GetNI(node_out).GetInDeg() - 1) < g.GetIntAttrDatN(node_out, "threshold"):
+            node_with_degree_below_threshold.append(node_out)
 
-    if g.IsNode(node_id):
-       g.DelNode(node_id)
-       del formula_table[node_id]
-
-
-
+    g.DelNode(n_id)
+    update_formula(id_node_where_update_formula)
+    del formula_table[n_id]
 
 
 calculate_formula()
-while g.GetNodes() != 0:
 
-    n = g.BegNI()
-    node_threshold = g.GetIntAttrDatN(n.GetId(), "threshold")
-    node_in_degree = n.GetInDeg()
-    if node_threshold == 0:
-        threshold_reached(n)
-    elif node_in_degree < node_threshold:
-        degree_below_threshold(n.GetId())
+while g.GetNodes():
+
+    if len(node_with_threshold_zero) > 0:
+        n = node_with_threshold_zero.pop()
+        if g.IsNode(n):
+            threshold_reached(n)
+    elif len(node_with_degree_below_threshold) > 0:
+        n = node_with_degree_below_threshold.pop()
+        if g.IsNode(n):
+            degree_below_threshold(n)
     else:
-        choose_the_maximum_ratio()
+        n = get_maximum_node_id()
+        if g.IsNode(n):
+            choose_the_maximum_ratio(n)
 
 print('Seed Set Length: ', len(seed_set))
 print('Seed Set Nodes: ', seed_set)
+
+
