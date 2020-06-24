@@ -2,11 +2,10 @@ import operator
 
 import GraphTools
 
-g = GraphTools.load_graph_from_txt("CA-HepPh.txt")
+g = GraphTools.load_graph_from_txt("CA-HepTh.txt")
 print('Graph Nodes: %d, Edges: %d' % (g.GetNodes(), g.GetEdges()))
 
-
-g = GraphTools.constant_threshold_assignment(g, 2)
+g = GraphTools.constant_threshold_assignment(g, 12)
 
 print('After Deferred decision Nodes: %d, Edges: %d' % (g.GetNodes(), g.GetEdges()))
 
@@ -50,14 +49,17 @@ def threshold_reached(n_id):
     id_node_where_update_formula = []
     for node_out in node_references.GetOutEdges():
         node_out_threshold = g.GetIntAttrDatN(node_out, "threshold")
-        node_out_threshold = node_out_threshold - 1
+        if node_out_threshold > 0:
+            node_out_threshold = node_out_threshold - 1
         g.AddIntAttrDatN(node_out, node_out_threshold, "threshold")
-        if g.GetIntAttrDatN(node_out, "threshold") < 1:
+        if node_out_threshold == 0:
+            if node_out in node_with_degree_below_threshold:
+                node_with_degree_below_threshold.remove(node_out)
             node_with_threshold_zero.append(node_out)
-        elif (g.GetNI(node_out).GetInDeg() - 1) < g.GetIntAttrDatN(node_out, "threshold"):
+        elif (g.GetNI(node_out).GetInDeg() - 1) < node_out_threshold:
             node_with_degree_below_threshold.append(node_out)
         else:
-            id_node_where_update_formula.append(n_id)
+            id_node_where_update_formula.append(node_out)
 
     g.DelNode(n_id)
     update_formula(id_node_where_update_formula)
@@ -70,9 +72,12 @@ def degree_below_threshold(n_id):
     id_node_where_update_formula = [n]
     for node_out in node_references.GetOutEdges():
         node_out_threshold = g.GetIntAttrDatN(node_out, "threshold")
-        node_out_threshold = node_out_threshold - 1
+        if node_out_threshold > 0:
+            node_out_threshold = node_out_threshold - 1
         g.AddIntAttrDatN(node_out, node_out_threshold, "threshold")
-        if node_out_threshold < 1:
+        if node_out_threshold == 0:
+            if node_out in node_with_degree_below_threshold:
+                node_with_degree_below_threshold.remove(node_out)
             node_with_threshold_zero.append(node_out)
         elif (g.GetNI(node_out).GetInDeg() - 1) < node_out_threshold:
             node_with_degree_below_threshold.append(node_out)
@@ -116,7 +121,7 @@ while g.GetNodes():
             degree_below_threshold(n)
     else:
         n = get_maximum_node_id()
-        
+
         if g.IsNode(n):
             choose_the_maximum_ratio(n)
 
