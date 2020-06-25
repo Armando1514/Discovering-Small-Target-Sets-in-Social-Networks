@@ -1,6 +1,6 @@
 import GraphTools
 
-g = GraphTools.load_graph_from_txt("Slashdot0902.txt")
+g = GraphTools.load_graph_from_txt("facebook-user-1.txt")
 print('Graph Nodes: %d, Edges: %d' % (g.GetNodes(), g.GetEdges()))
 
 g =GraphTools.deferred_decisions_with_uniform_probability(g)
