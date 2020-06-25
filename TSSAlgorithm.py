@@ -2,10 +2,12 @@ import operator
 
 import GraphTools
 
-g = GraphTools.load_graph_from_txt("CA-HepTh.txt")
+g = GraphTools.load_graph_from_txt("twitter_combined.txt")
 print('Graph Nodes: %d, Edges: %d' % (g.GetNodes(), g.GetEdges()))
 
-g = GraphTools.constant_threshold_assignment(g, 12)
+g =GraphTools.deferred_decisions_with_uniform_probability(g)
+
+g = GraphTools.constant_threshold_assignment(g, 2)
 
 print('After Deferred decision Nodes: %d, Edges: %d' % (g.GetNodes(), g.GetEdges()))
 
@@ -126,6 +128,5 @@ while g.GetNodes():
             choose_the_maximum_ratio(n)
 
 print('Seed Set Length: ', len(seed_set))
-print('Seed Set Nodes: ', seed_set)
 
 
